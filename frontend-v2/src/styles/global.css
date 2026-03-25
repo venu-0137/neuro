@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+    background: #060d1f;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl;
+  }
+  
+  .neon-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500;
+  }
+
+  .neon-border {
+    @apply border-transparent bg-gradient-to-r from-indigo-500 to-cyan-400 bg-origin-border;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25 active:scale-95;
+  }
+
+  .btn-glass {
+    @apply px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-sm transition-all duration-300 active:scale-95;
+  }
+
+  /* Page wrapper for content above backgrounds */
+  .page-content {
+    @apply relative z-10;
+  }
+}
+
+/* Smooth page transitions */
+main {
+  animation: pageFadeIn 0.5s ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(51, 65, 85, 0.8);
+}
