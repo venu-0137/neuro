@@ -1,47 +1,46 @@
-# NeuroTalk AI 🧠
+# BolMitra - NeuroTalk AI 🧠
 
-Analyze emotional patterns in text using DistilBERT transformers. This project provides a full-stack solution including a multi-label classification model, a FastAPI backend, and a premium glassmorphism frontend.
+BolMitra is an advanced AI-driven emotional analytics platform that leverages high-fidelity neural networks to interpret and track cognitive-emotional states from text and emojis.
 
-## 📁 Project Structure
+## ✨ Features
+- **Neural Core Analytics**: Real-time emotion detection with confidence scores.
+- **Mood Machine 💫**: Interactive emotional wellness interface.
+- **Secure 4-Digit Auth**: System-generated 4-digit passwords for high-speed, secure access.
+- **BolMitra Dashboard**: Sleek, glassmorphism-inspired analytics interface.
 
-```
-NeuroTalkAI/
-├── neurotalk_model/       # Saved model weights & tokenizer
-├── frontend/              # HTML/CSS/JS files
-├── api.py                 # FastAPI REST API
-├── model.py               # Model architecture (DistilBERT)
-├── train_model.py         # Training pipeline
-├── labels.py              # Emotion label mappings
-├── inference.py           # Standalone prediction engine
-└── requirements.txt       # Python dependencies
-```
+## 🚀 Setup Instructions (All Laptops)
 
-## 🚀 Getting Started
+### 1. Prerequisites
+- **Node.js**: (v18 or higher) [Download](https://nodejs.org/)
+- **Python**: (v3.9 or higher) [Download](https://www.python.org/)
+- **MongoDB**: (Community Edition) [Download](https://www.mongodb.com/try/download/community)
 
-### 1. Setup Environment
+### 2. Dependency Installation
+Open your terminal in the project root and run:
 ```bash
+# Install Python Backend dependencies
 pip install -r requirements.txt
+
+# Install Frontend dependencies
+cd frontend-v2
+npm install
+cd ..
 ```
 
-### 2. Train the Model
-You can train locally if you have the GoEmotions CSV files:
-```bash
-python train_model.py
-```
-*Alternatively, use the provided Google Colab workflow for GPU acceleration.*
+### 3. Launching the System
+We have provided a unified startup script for convenience. Simply double-click:
+👉 **`launch_system.bat`**
 
-### 3. Run the Backend
-```bash
-python api.py
-```
+This will automatically:
+1. Start the MongoDB database.
+2. Launch the FastAPI backend server.
+3. Start the Vite development server for the UI.
 
-### 4. Open the Frontend
-Launch `frontend/index.html` in your favorite browser and start analyzing text!
+### 4. Accessing the Platform
+Once the scripts are running, open your browser to:
+**http://127.0.0.1:5173**
 
-## 🧪 Testing the API
-```bash
-curl -X POST "http://localhost:8000/analyze" -H "Content-Type: application/json" -d "{\"text\": \"I'm feeling very excited about this project!\"}"
-```
-
-## 🛡️ License
-MIT License
+## 👤 Authentication Guide
+1. **Sign Up**: Enter your chosen **Username** and **Email**.
+2. **Password**: The system will generate a **4-digit numeric password**. **SAVE THIS CODE.**
+3. **Login**: Use your **Username** and the **4-digit code** to enter the dashboard.

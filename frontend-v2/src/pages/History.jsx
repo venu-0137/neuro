@@ -16,7 +16,7 @@ const History = () => {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) {
-                    navigate('/login');
+                    navigate('/');
                     return;
                 }
                 const response = await axios.get('/history', {
@@ -25,7 +25,7 @@ const History = () => {
                 setHistoryItems(response.data);
             } catch (err) {
                 console.error('Failed to fetch history:', err);
-                if (err.response?.status === 401) navigate('/login');
+                if (err.response?.status === 401) navigate('/');
             } finally {
                 setLoading(false);
             }

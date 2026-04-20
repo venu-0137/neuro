@@ -18,7 +18,7 @@ const Analysis = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
-                navigate('/login');
+                navigate('/');
                 return;
             }
 
@@ -34,7 +34,7 @@ const Analysis = () => {
         } catch (error) {
             console.error('Analysis failed:', error);
             if (error.response?.status === 401) {
-                navigate('/login');
+                navigate('/');
             } else {
                 alert('Failed to connect to NeuroTalk API. Is the backend running?');
             }

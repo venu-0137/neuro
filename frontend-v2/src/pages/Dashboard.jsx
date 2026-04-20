@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Brain, History, Play, Activity, Sparkles, Layout } from 'lucide-react';
+import { Brain, History, Play, Activity, Sparkles, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 import GlassCard from '../components/GlassCard.jsx';
 
@@ -19,7 +19,7 @@ const Dashboard = () => {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) {
-                    navigate('/login');
+                    navigate('/');
                     return;
                 }
                 const response = await axios.get('/history', {
@@ -30,12 +30,17 @@ const Dashboard = () => {
 
                 if (data.length > 0) {
                     // Calculate top emotion
-                    const emotions = data.flatMap(item => item.emotions?.map(e => e.label) || []);
-                    const counts = emotions.reduce((acc, curr) => {
+                    const allEmotions = data.flatMap(item => item.emotions?.map(e => e.label) || []);
+                    const nonNeutralEmotions = allEmotions.filter(e => e !== 'neutral');
+                    
+                    const counts = (nonNeutralEmotions.length > 0 ? nonNeutralEmotions : allEmotions).reduce((acc, curr) => {
                         acc[curr] = (acc[curr] || 0) + 1;
                         return acc;
                     }, {});
-                    const topEmotion = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, 'N/A');
+                    
+                    const topEmotion = Object.keys(counts).length > 0 
+                        ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b)
+                        : 'N/A';
 
                     setStats([
                         { label: 'Analyses Run', value: data.length.toString(), icon: <Activity className="text-indigo-400" />, trend: `+${data.length}` },
@@ -45,7 +50,7 @@ const Dashboard = () => {
                 }
             } catch (err) {
                 console.error('Dashboard stats failed:', err);
-                if (err.response?.status === 401) navigate('/login');
+                if (err.response?.status === 401) navigate('/');
             }
         };
         fetchStats();
@@ -65,29 +70,70 @@ const Dashboard = () => {
             icon: <History size={24} />,
             path: '/history',
             color: 'from-purple-500 to-indigo-600'
+        },
+        {
+            title: 'Talk to me right now',
+            desc: 'Interact with the neural assistant for real-time guidance.',
+            icon: <MessageSquare size={24} />,
+            path: '/assistant',
+            color: 'from-emerald-500 to-teal-600'
         }
     ];
 
     return (
-        <div className="max-w-6xl mx-auto pb-20 space-y-12">
-            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div className="space-y-2">
-                    <motion.h1
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="text-4xl font-bold text-white flex items-center gap-3"
-                    >
-                        <Layout className="text-indigo-500" />
-                        Neural Dashboard
-                    </motion.h1>
-                    <p className="text-slate-400">Welcome to the core of NeuroTalk AI. Monitor your neural activity and emotional insights.</p>
-                </div>
-                <div className="flex items-center gap-3 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-300 text-sm font-medium">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    Neural Core Online
-                </div>
-            </header>
+        <div className="max-w-6xl mx-auto pb-20 space-y-12 relative">
+            <header className="flex flex-col items-center text-center gap-6 pt-0">
+                {/* Main Project Title */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2"
+                >
+                    <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/20">
+                        BolMitra
+                    </h1>
+                    <div className="h-1 w-24 bg-gradient-to-r from-transparent via-indigo-500 to-transparent mx-auto rounded-full" />
+                </motion.div>
 
+                {/* Greeting & Welcome */}
+                <div className="space-y-4 max-w-2xl">
+                    <motion.h2
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-2xl md:text-4xl font-bold text-white flex items-center justify-center gap-4 tracking-tight"
+                    >
+                        <Sparkles className="text-indigo-400 w-6 h-6 md:w-8 md:h-8" />
+                        What’s cookin, good lookin 😏
+                    </motion.h2>
+                    <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed">
+                        Welcome to the neural core of your project. Monitor activity and emotional insights with precision.
+                    </p>
+                </div>
+
+                {/* Action & Status Row */}
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex flex-wrap items-center justify-center gap-6"
+                >
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate('/mood-machine')}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full text-white text-sm font-bold shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all border border-white/10"
+                    >
+                        Mood Machine 💫
+                    </motion.button>
+
+                    <div className="flex items-center gap-3 px-5 py-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-300 text-sm font-bold backdrop-blur-md">
+                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+                        Neural Core Online
+                    </div>
+                </motion.div>
+
+</header>
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {stats.map((stat, i) => (
@@ -141,33 +187,9 @@ const Dashboard = () => {
 
                 {/* System Insights */}
                 <div className="space-y-6">
-                    <h3 className="text-lg font-semibold text-white px-1">Neural Topology</h3>
-                    <GlassCard className="h-full !p-8 flex flex-col justify-center items-center text-center space-y-6 border-indigo-500/20">
-                        <div className="relative">
-                            <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                                className="w-32 h-32 border-2 border-dashed border-indigo-500/30 rounded-full"
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <Brain size={48} className="text-indigo-400 animate-pulse" />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <h4 className="text-white font-medium">AI Model: DistilBERT-v2</h4>
-                            <p className="text-slate-400 text-sm max-w-xs mx-auto">
-                                Analyzing linguistic vectors and emotional weights across 28 distinct labels for high-fidelity sentiment mapping.
-                            </p>
-                        </div>
-                        <div className="w-full pt-4">
-                            <div className="flex justify-between text-xs text-slate-500 mb-2">
-                                <span>Processing Load</span>
-                                <span>12%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                <div className="h-full w-[12%] bg-indigo-500" />
-                            </div>
-                        </div>
+                    <h3 className="text-lg font-semibold text-white px-1">Neural Statistics</h3>
+                    <GlassCard className="h-full !p-8 flex items-center justify-center border-indigo-500/20 min-h-[400px]">
+                        <p className="text-slate-400 font-medium italic opacity-60">construction in work</p>
                     </GlassCard>
                 </div>
             </div>

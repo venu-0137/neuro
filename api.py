@@ -58,8 +58,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # Models for Request/Response
 class UserRegister(BaseModel):
+    username: str
     email: EmailStr
-    password: str
 
 class UserLogin(BaseModel):
     username: str
@@ -105,7 +105,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 # Initialize inference engine
 try:
-    engine = NeuroTalkInference(model_path="neurotalk_model", num_labels=28)
+    engine = NeuroTalkInference(model_path="neurotalk_model_updated", num_labels=28)
 except Exception as e:
     print(f"Warning: Could not load model: {e}")
     engine = None
@@ -113,23 +113,30 @@ except Exception as e:
 # Endpoints
 @app.post("/register")
 async def register(user_data: UserRegister):
-    # Check if user exists
-    if await db.users.find_one({"email": user_data.email}):
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Generate unique username
-    random_suffix = ''.join(random.choices(string.digits, k=6))
-    username = f"neuro_user_{random_suffix}"
-    
-    user_doc = {
-        "username": username,
-        "email": user_data.email,
-        "password_hash": hash_password(user_data.password),
-        "created_at": datetime.utcnow()
-    }
-    
-    await db.users.insert_one(user_doc)
-    return {"username": username}
+    try:
+        # Check if username or email exists
+        if await db.users.find_one({"username": user_data.username}):
+            raise HTTPException(status_code=400, detail="Username already taken")
+        if await db.users.find_one({"email": user_data.email}):
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Generate 4-digit password
+        generated_password = ''.join(random.choices(string.digits, k=4))
+        
+        user_doc = {
+            "username": user_data.username,
+            "email": user_data.email,
+            "password_hash": hash_password(generated_password),
+            "created_at": datetime.utcnow()
+        }
+        
+        await db.users.insert_one(user_doc)
+        return {"username": user_data.username, "password": generated_password}
+    except Exception as e:
+        import traceback
+        print(f"Registration Error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/login", response_model=Token)
 async def login(user_data: UserLogin):
@@ -149,12 +156,12 @@ async def analyze_text(request: AnalysisRequest, current_user: dict = Depends(ge
     # Note: NeuroTalkInference.analyze currently returns a string, but the prompt says 'emotions: array'
     # I should adjust the engine to return structured data if possible, or wrap the string.
     # Assuming the user wants structured data saved.
-    prediction = engine.analyze(request.text)
+    prediction, score = engine.analyze(request.text)
     
     analysis_doc = {
         "user_id": str(current_user["_id"]),
         "text": request.text,
-        "emotions": [{"label": prediction, "score": 1.0}], # Mocking structure for now
+        "emotions": [{"label": prediction, "score": score}],
         "cognitive_patterns": [],
         "timestamp": datetime.utcnow()
     }
@@ -182,4 +189,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run("api:app", host="0.0.0.0", port=8080, reload=True)

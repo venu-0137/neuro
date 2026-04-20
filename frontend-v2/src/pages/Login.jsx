@@ -13,7 +13,7 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [showUserPopup, setShowUserPopup] = useState(null);
+    const [showUserPopup, setShowUserPopup] = useState(null); // { username, password }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,10 +22,15 @@ const Login = () => {
 
         try {
             if (isRegister) {
-                const response = await axios.post('/register', { email, password });
-                setShowUserPopup(response.data.username);
+                console.log('Sending registration request:', { username, email });
+                const response = await axios.post('/register', { username, email });
+                setShowUserPopup({
+                    username: response.data.username,
+                    password: response.data.password
+                });
                 setIsRegister(false);
                 setEmail('');
+                setUsername('');
                 setPassword('');
             } else {
                 const response = await axios.post('/login', { username, password });
@@ -34,7 +39,17 @@ const Login = () => {
                 navigate('/dashboard');
             }
         } catch (err) {
-            setError(err.response?.data?.detail || 'An error occurred. Please try again.');
+            const detail = err.response?.data?.detail;
+            if (typeof detail === 'string') {
+                setError(detail);
+            } else if (Array.isArray(detail)) {
+                const firstErr = detail[0];
+                const field = firstErr?.loc?.join(' > ');
+                setError(`${field || 'Error'}: ${firstErr?.msg || 'Validation failed'}`);
+                console.error('Validation details:', detail);
+            } else {
+                setError('An error occurred. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
@@ -56,11 +71,18 @@ const Login = () => {
                             </div>
                             <div className="space-y-2">
                                 <h3 className="text-2xl font-bold text-white">Registration Successful!</h3>
-                                <p className="text-slate-400">Your generated username is:</p>
-                                <div className="bg-white/5 p-4 rounded-xl border border-white/10 font-mono text-indigo-400 text-lg">
-                                    {showUserPopup}
+                                <p className="text-slate-400">Save your credentials securely:</p>
+                                <div className="space-y-4">
+                                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                                        <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Username</p>
+                                        <p className="font-mono text-indigo-400 text-lg">{showUserPopup.username}</p>
+                                    </div>
+                                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                                        <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">4-Digit Password</p>
+                                        <p className="font-mono text-emerald-400 text-3xl font-black tracking-[0.5em]">{showUserPopup.password}</p>
+                                    </div>
                                 </div>
-                                <p className="text-xs text-slate-500">Please use this username to log in.</p>
+                                <p className="text-xs text-red-400/80 font-medium">⚠️ This is the only time you will see this password!</p>
                             </div>
                             <button
                                 onClick={() => setShowUserPopup(null)}
@@ -98,7 +120,19 @@ const Login = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">
-                        {isRegister ? (
+                        <div className="relative group/input">
+                            <LogIn className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within/input:text-indigo-400 transition-colors" />
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="Username"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
+                                required
+                            />
+                        </div>
+
+                        {isRegister && (
                             <div className="relative group/input">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within/input:text-indigo-400 transition-colors" />
                                 <input
@@ -110,30 +144,22 @@ const Login = () => {
                                     required
                                 />
                             </div>
-                        ) : (
+                        )}
+
+                        {!isRegister && (
                             <div className="relative group/input">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within/input:text-indigo-400 transition-colors" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within/input:text-indigo-400 transition-colors" />
                                 <input
-                                    type="text"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    placeholder="Username"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="4-Digit Password"
+                                    maxLength={4}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
                                     required
                                 />
                             </div>
                         )}
-                        <div className="relative group/input">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within/input:text-indigo-400 transition-colors" />
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Password"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
-                                required
-                            />
-                        </div>
                     </div>
 
                     <button

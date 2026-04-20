@@ -1,6 +1,0 @@
-@echo off
-echo Organizing model files...
-python organize_model.py
-echo.
-echo Starting backend...
-python api.py > backend.log 2>&1
