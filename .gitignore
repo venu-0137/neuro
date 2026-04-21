@@ -1,25 +1,41 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-venv/
+*.pyo
+*.pyd
+.Python
 env/
+venv/
 .env
-
-# Node
-node_modules/
+*.egg-info/
 dist/
+build/
 
-# System
-.DS_Store
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Data and DB
+# MongoDB data (local DB files)
 mongodb_data/
-backend.log
-*.log
-neurotalk_model/
-# *.csv
 
-# IDEs
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
 .vscode/
 .idea/
+
+# Logs
+*.log
+logs/
+
+# Build output
+frontend-v2/dist/
