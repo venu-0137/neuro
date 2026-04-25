@@ -1,0 +1,3 @@
+[2026-04-25 06:13:42.301881] Register: test, Role: 'counselor', Final Role: 'counselor'
+[2026-04-25 08:03:28.789711] Register: neuro_per, Role: 'user', Final Role: 'user'
+[2026-04-25 08:04:40.462378] Register: neuro_coun, Role: 'counselor', Final Role: 'counselor'

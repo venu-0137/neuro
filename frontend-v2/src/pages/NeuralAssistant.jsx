@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, ArrowLeft, Send, Sparkles, User, Brain, ExternalLink, Lightbulb, Zap, Heart, Target, Mic, Volume2, VolumeX, History, RefreshCcw } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import GlassCard from '../components/GlassCard.jsx';
 import { getDominantEmotion } from '../utils/safeData';
@@ -9,6 +9,7 @@ import { getDominantEmotion } from '../utils/safeData';
 const NeuralAssistant = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { patientId } = useParams();
     const [messages, setMessages] = useState([
         {
             role: 'assistant',
@@ -45,6 +46,28 @@ const NeuralAssistant = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages, loading, typingMessage]);
+
+    // Load Chat History if Patient View
+    useEffect(() => {
+        if (patientId) {
+            const fetchChatHistory = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await axios.get(`/chat/history?patient_id=${patientId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const logs = response.data.map(log => [
+                        { role: 'user', content: log.message, timestamp: log.timestamp },
+                        { role: 'assistant', content: log.reply, timestamp: log.timestamp }
+                    ]).flat();
+                    if (logs.length > 0) setMessages(logs);
+                } catch (err) {
+                    console.error('Failed to fetch chat history:', err);
+                }
+            };
+            fetchChatHistory();
+        }
+    }, [patientId]);
 
     // Handle Diary Handoff
     useEffect(() => {

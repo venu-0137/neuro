@@ -32,6 +32,14 @@ export default defineConfig({
             '/diary': {
                 target: 'http://127.0.0.1:8080',
                 bypass: (req) => (req.headers.accept?.includes('text/html') ? '/index.html' : null)
+            },
+            '/me': {
+                target: 'http://127.0.0.1:8080',
+                bypass: (req) => (req.headers.accept?.includes('text/html') ? '/index.html' : null)
+            },
+            '/counselor': {
+                target: 'http://127.0.0.1:8080',
+                bypass: (req) => (req.headers.accept?.includes('text/html') ? '/index.html' : null)
             }
         }
     }

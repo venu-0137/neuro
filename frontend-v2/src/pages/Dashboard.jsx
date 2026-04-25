@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Brain, History, Play, Activity, Sparkles, MessageSquare, Mic, TrendingUp, TrendingDown, Zap, X } from 'lucide-react';
 import axios from 'axios';
 import GlassCard from '../components/GlassCard.jsx';
@@ -8,6 +8,7 @@ import { getAllEmotions, getEmotionScore } from '../utils/safeData';
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const { patientId } = useParams();
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState([
         { label: 'Analyses Run', value: '0', icon: <Activity className="text-indigo-400" />, trend: '0%', direction: 'up' },
@@ -19,11 +20,20 @@ const Dashboard = () => {
         const fetchStats = async () => {
             try {
                 const token = localStorage.getItem('token');
+                const role = localStorage.getItem('role');
                 if (!token) {
                     navigate('/');
                     return;
                 }
-                const response = await axios.get('/history', {
+                
+                // CRITICAL: Force redirect if counselor tries to access user dashboard natively
+                if (role === 'counselor' && !patientId) {
+                    navigate('/counselor-dashboard');
+                    return;
+                }
+
+                const url = patientId ? `/history?patient_id=${patientId}` : '/history';
+                const response = await axios.get(url, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const data = response.data;
@@ -80,9 +90,9 @@ const Dashboard = () => {
         };
         fetchStats();
     }, []);
+    const isCounselorView = localStorage.getItem('role') === 'counselor' && localStorage.getItem('viewing_mode') === 'counselor';
 
-
-    const actions = [
+    const baseActions = [
         {
             title: 'Neural Analysis',
             desc: 'Execute real-time emotional deep-dive on custom text.',
@@ -109,68 +119,81 @@ const Dashboard = () => {
             hasMic: true
         }
     ];
+    
+    const actions = isCounselorView ? baseActions.filter(a => a.path !== '/assistant') : baseActions;
 
     return (
         <div className="max-w-6xl mx-auto pb-20 space-y-12 relative">
-            <header className="flex flex-col items-center text-center gap-6 pt-0">
-                {/* Main Project Title with Glow */}
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-3 relative group"
-                >
-                    <div className="absolute inset-0 bg-indigo-500/10 blur-[40px] rounded-full scale-150 group-hover:scale-175 transition-transform duration-1000" />
-                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/30 relative z-10 drop-shadow-2xl">
-                        BolMitra
-                    </h1>
-                    <div className="h-1 w-32 bg-gradient-to-r from-transparent via-indigo-500 to-transparent mx-auto rounded-full" />
-                    <p className="text-[10px] uppercase tracking-[0.3em] font-black text-indigo-400/60">Last active: just now</p>
-                </motion.div>
+            {!isCounselorView && (
+                <header className="flex flex-col items-center text-center gap-6 pt-0">
+                    {/* Main Project Title with Glow */}
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-3 relative group"
+                    >
+                        <div className="absolute inset-0 bg-indigo-500/10 blur-[40px] rounded-full scale-150 group-hover:scale-175 transition-transform duration-1000" />
+                        <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/30 relative z-10 drop-shadow-2xl">
+                            BolMitra
+                        </h1>
+                        <div className="h-1 w-32 bg-gradient-to-r from-transparent via-indigo-500 to-transparent mx-auto rounded-full" />
+                        <p className="text-[10px] uppercase tracking-[0.3em] font-black text-indigo-400/60">Last active: just now</p>
+                    </motion.div>
 
-                {/* Greeting & Welcome */}
-                <div className="space-y-4 max-w-2xl relative z-10">
-                    <motion.h2
+                    {/* Greeting & Welcome */}
+                    <div className="space-y-4 max-w-2xl relative z-10">
+                        <motion.h2
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="text-2xl md:text-4xl font-bold text-white flex items-center justify-center gap-4 tracking-tight"
+                        >
+                            <Sparkles className="text-indigo-400 w-6 h-6 md:w-8 md:h-8 animate-pulse" />
+                            What’s cookin, good lookin 😏
+                        </motion.h2>
+                        <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-lg mx-auto">
+                            Welcome to the neural core. Monitor your emotional evolution with precision and deep AI insights.
+                        </p>
+                    </div>
+
+                    {/* Action & Status Row */}
+                    <motion.div 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                        className="text-2xl md:text-4xl font-bold text-white flex items-center justify-center gap-4 tracking-tight"
+                        transition={{ delay: 0.4 }}
+                        className="flex flex-col items-center gap-6"
                     >
-                        <Sparkles className="text-indigo-400 w-6 h-6 md:w-8 md:h-8 animate-pulse" />
-                        What’s cookin, good lookin 😏
-                    </motion.h2>
-                    <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-lg mx-auto">
-                        Welcome to the neural core. Monitor your emotional evolution with precision and deep AI insights.
-                    </p>
-                </div>
+                        <div className="flex flex-wrap items-center justify-center gap-4">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => navigate('/mood-machine')}
+                                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-2xl text-white text-sm font-black shadow-xl shadow-purple-500/20 hover:shadow-purple-500/40 transition-all border border-white/20 uppercase tracking-wider"
+                            >
+                                Mood Machine 💫
+                            </motion.button>
 
-                {/* Action & Status Row */}
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="flex flex-col items-center gap-6"
-                >
-                    <div className="flex flex-wrap items-center justify-center gap-4">
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => navigate('/mood-machine')}
-                            className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-2xl text-white text-sm font-black shadow-xl shadow-purple-500/20 hover:shadow-purple-500/40 transition-all border border-white/20 uppercase tracking-wider"
-                        >
-                            Mood Machine 💫
-                        </motion.button>
-
-                        <div className="flex flex-col items-start bg-indigo-500/5 border border-white/10 rounded-3xl p-1 pr-6">
-                            <div className="flex items-center gap-3 px-4 py-2 text-indigo-300 text-xs font-black uppercase tracking-widest">
-                                <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
-                                <span className="w-2 h-2 rounded-full bg-green-500 absolute" />
-                                Neural Core Online
+                            <div className="flex flex-col items-start bg-indigo-500/5 border border-white/10 rounded-3xl p-1 pr-6">
+                                <div className="flex items-center gap-3 px-4 py-2 text-indigo-300 text-xs font-black uppercase tracking-widest">
+                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
+                                    <span className="w-2 h-2 rounded-full bg-green-500 absolute" />
+                                    Neural Core Online
+                                </div>
                             </div>
+
+                            {/* Counselor Badge */}
+                            {(patientId || localStorage.getItem('created_by_name')) && (
+                                <div className="flex items-center bg-white/5 border border-white/10 rounded-3xl px-4 py-2.5 shadow-lg backdrop-blur-md">
+                                    <Sparkles size={14} className="text-yellow-400 mr-2" />
+                                    <span className="text-xs font-bold text-white uppercase tracking-widest">
+                                        {patientId ? 'Viewing as Counselor' : `Counselor: ${localStorage.getItem('created_by_name')}`}
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                    
-                </motion.div>
-            </header>
+                    </motion.div>
+                </header>
+            )}
 
             <div className="space-y-8">
                 {/* Stats Row */}
@@ -220,7 +243,8 @@ const Dashboard = () => {
 
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {!isCounselorView && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Actions */}
                 <div className="space-y-6">
                     <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest px-1">Deep Neural Integration</h3>
@@ -285,6 +309,7 @@ const Dashboard = () => {
                     </motion.div>
                 </div>
             </div>
+            )}
 
         </div>
     );

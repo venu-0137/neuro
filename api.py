@@ -72,6 +72,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 class UserRegister(BaseModel):
     username: str
     email: EmailStr
+    role: Optional[str] = "user" # user or counselor
 
 class UserLogin(BaseModel):
     username: str
@@ -80,6 +81,8 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    role: str
+    created_by_name: Optional[str] = None
 
 class AnalysisRequest(BaseModel):
     text: str
@@ -119,12 +122,49 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")
+        
         user = await db.users.find_one({"username": username})
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
+        
         return user
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+@app.get("/me")
+async def read_users_me(current_user: dict = Depends(get_current_user)):
+    response_data = {
+        "username": current_user["username"],
+        "email": current_user["email"],
+        "role": current_user.get("role", "user")
+    }
+    
+    # If the user was created by a counselor, fetch the counselor's name
+    if current_user.get("created_by"):
+        from bson import ObjectId
+        try:
+            counselor = await db.users.find_one({"_id": ObjectId(current_user["created_by"])})
+            if counselor:
+                response_data["created_by_name"] = counselor.get("username")
+        except Exception as e:
+            print(f"Error fetching counselor name: {e}")
+            
+    return response_data
+
+async def verify_patient_access(patient_id: str, current_user: dict):
+    """Utility to ensure counselor has access to a specific patient"""
+    if not patient_id:
+        return str(current_user["_id"])
+    
+    if current_user.get("role") != "counselor":
+        raise HTTPException(status_code=403, detail="Counselor access required for patient data")
+        
+    from bson import ObjectId
+    patient = await db.users.find_one({"_id": ObjectId(patient_id), "created_by": str(current_user["_id"])})
+    if not patient:
+        raise HTTPException(status_code=403, detail="Unauthorized access to this patient")
+    
+    return patient_id
 
 # Initialize inference engine
 try:
@@ -554,6 +594,15 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         "links": response_data["links"]
     }
 
+@app.get("/chat/history")
+async def get_chat_history(patient_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    uid = await verify_patient_access(patient_id, current_user)
+    cursor = db.chats.find({"user_id": uid}).sort("timestamp", 1)
+    history = await cursor.to_list(length=100)
+    for h in history:
+        h["_id"] = str(h["_id"])
+    return history
+
 # --- Diary Functions ---
 
 def get_diary_trigger(emotion: str) -> str:
@@ -571,6 +620,9 @@ def get_diary_trigger(emotion: str) -> str:
 
 @app.post("/diary/add")
 async def add_diary(entry: DiaryEntry, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") == "counselor":
+        raise HTTPException(status_code=403, detail="Counselors cannot add diary entries")
+        
     try:
         # 1. Detect core emotion for the diary text
         if engine is not None:
@@ -603,9 +655,10 @@ async def add_diary(entry: DiaryEntry, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=500, detail="Failed to save diary entry")
 
 @app.get("/diary/history")
-async def get_diary_history(current_user: dict = Depends(get_current_user)):
+async def get_diary_history(patient_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     try:
-        cursor = db.diary.find({"user_id": str(current_user["_id"])}).sort("timestamp", -1)
+        uid = await verify_patient_access(patient_id, current_user)
+        cursor = db.diary.find({"user_id": uid}).sort("timestamp", -1)
         entries = await cursor.to_list(length=100)
         for entry in entries:
             entry["id"] = str(entry["_id"])
@@ -616,6 +669,9 @@ async def get_diary_history(current_user: dict = Depends(get_current_user)):
 
 @app.put("/diary/update/{entry_id}")
 async def update_diary(entry_id: str, entry: DiaryEntry, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") == "counselor":
+        raise HTTPException(status_code=403, detail="Counselors cannot edit diary entries")
+        
     try:
         from bson import ObjectId
         # Check if entry exists and belongs to user
@@ -668,18 +724,31 @@ async def register(user_data: UserRegister):
             raise HTTPException(status_code=400, detail="Email already registered")
         
         # Generate 4-digit password
+        # Generate 4-digit password
         generated_password = ''.join(random.choices(string.digits, k=4))
         print(f"Generated password for {user_data.username}: {generated_password}")
         
+        # Force lowercase and remove whitespace for absolute consistency
+        raw_role = str(user_data.role).lower().strip() if user_data.role else "user"
+        user_role = raw_role if raw_role in ["user", "counselor"] else "user"
+        
+        # DEBUG LOGGING TO FILE
+        with open("debug_log.txt", "a") as f:
+            f.write(f"[{datetime.now()}] Register: {user_data.username}, Role: '{user_data.role}', Final Role: '{user_role}'\n")
+
         user_doc = {
             "username": user_data.username,
             "email": user_data.email,
             "password_hash": hash_password(generated_password),
+            "role": user_role,
             "created_at": datetime.now(timezone.utc)
         }
         
+        # FINAL LOGGING FOR ARUNA/SHARU ISSUE
+        print(f"!!! CRITICAL REGISTRATION !!! User: {user_data.username}, Requested Role: {user_data.role}, SAVED AS: {user_role}")
+        
         await db.users.insert_one(user_doc)
-        return {"username": user_data.username, "password": generated_password}
+        return {"username": user_data.username, "password": generated_password, "role": user_role}
     except Exception as e:
         import traceback
         print(f"Registration Error: {e}")
@@ -700,8 +769,25 @@ async def login(user_data: UserLogin):
             raise HTTPException(status_code=401, detail="Incorrect username or password")
         
         print("Login successful, generating token...")
-        access_token = create_access_token(data={"sub": user["username"]})
-        return {"access_token": access_token, "token_type": "bearer"}
+        role = user.get("role", "user") # Backward compatibility
+        access_token = create_access_token(data={"sub": user["username"], "role": role})
+        
+        created_by_name = None
+        if user.get("created_by"):
+            from bson import ObjectId
+            try:
+                counselor = await db.users.find_one({"_id": ObjectId(user["created_by"])})
+                if counselor:
+                    created_by_name = counselor.get("username")
+            except Exception as e:
+                print(f"Error fetching counselor name during login: {e}")
+                
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer", 
+            "role": role,
+            "created_by_name": created_by_name
+        }
     except Exception as e:
         import traceback
         print(f"!!! Login Crash: {e}")
@@ -738,13 +824,75 @@ async def analyze_text(request: AnalysisRequest, current_user: dict = Depends(ge
     }
 
 @app.get("/history")
-async def get_history(current_user: dict = Depends(get_current_user)):
-    cursor = db.analyses.find({"user_id": str(current_user["_id"])}).sort("timestamp", -1)
+async def get_history(patient_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    uid = await verify_patient_access(patient_id, current_user)
+    cursor = db.analyses.find({"user_id": uid}).sort("timestamp", -1)
     history = await cursor.to_list(length=100)
-    # Convert ObjectId to string for JSON serialization
     for item in history:
         item["_id"] = str(item["_id"])
     return history
+
+# --- Counselor Specific Endpoints ---
+
+@app.get("/counselor/patients")
+async def get_patients(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "counselor":
+        raise HTTPException(status_code=403, detail="Counselor access only")
+    
+    cursor = db.users.find({"created_by": str(current_user["_id"])})
+    patients = await cursor.to_list(length=100)
+    for p in patients:
+        p["_id"] = str(p["_id"])
+        del p["password_hash"]
+    return patients
+
+@app.post("/counselor/add-patient")
+async def add_patient(user_data: UserRegister, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "counselor":
+        raise HTTPException(status_code=403, detail="Counselor access only")
+        
+    # Standard registration logic
+    ex_user = await db.users.find_one({"username": user_data.username})
+    if ex_user: raise HTTPException(status_code=400, detail="Username taken")
+    
+    generated_password = ''.join(random.choices(string.digits, k=4))
+    user_doc = {
+        "username": user_data.username,
+        "email": user_data.email,
+        "password_hash": hash_password(generated_password),
+        "role": "user", # Patients are always users
+        "created_by": str(current_user["_id"]),
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.users.insert_one(user_doc)
+    return {"username": user_data.username, "password": generated_password}
+
+@app.get("/counselor/patient/{patient_id}/data")
+async def get_patient_data(patient_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "counselor":
+        raise HTTPException(status_code=403, detail="Counselor access only")
+        
+    # Security check: Does this patient belong to this counselor?
+    from bson import ObjectId
+    patient = await db.users.find_one({"_id": ObjectId(patient_id), "created_by": str(current_user["_id"])})
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found or unauthorized")
+        
+    # Fetch history and trends
+    history_cursor = db.analyses.find({"user_id": patient_id}).sort("timestamp", -1)
+    history = await history_cursor.to_list(length=50)
+    
+    diary_cursor = db.diary.find({"user_id": patient_id}).sort("timestamp", -1)
+    diary = await diary_cursor.to_list(length=20)
+    
+    for h in history: h["_id"] = str(h["_id"])
+    for d in diary: d["_id"] = str(d["_id"])
+    
+    return {
+        "username": patient["username"],
+        "history": history,
+        "diary": diary
+    }
 
 @app.get("/")
 async def root():

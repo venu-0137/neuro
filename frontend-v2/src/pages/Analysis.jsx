@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Send, ArrowLeft, Brain, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import GlassCard from '../components/GlassCard.jsx';
@@ -10,9 +10,10 @@ const Analysis = () => {
     const [text, setText] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { patientId } = useParams();
 
     const handleAnalyze = async () => {
-        if (!text.trim()) return;
+        if (!text.trim() || patientId) return; // Prevent analysis in patient view
         setLoading(true);
 
         try {
@@ -70,15 +71,19 @@ const Analysis = () => {
                         exit={{ opacity: 0, y: -20 }}
                         className="space-y-8"
                     >
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group"
-                        >
-                            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                            Back to Dashboard
-                        </button>
+                        <div className="flex items-center justify-between">
+                            <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/5 rounded-full transition-colors text-slate-400">
+                                <ArrowLeft size={24} />
+                            </button>
+                            {patientId && (
+                                <div className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Read Only Mode</span>
+                                </div>
+                            )}
+                        </div>
 
-                        <header className="space-y-2">
+                        <header className="space-y-4">
                             <h2 className="text-3xl font-bold text-white flex items-center gap-3">
                                 <Brain className="text-indigo-400" />
                                 New Neural Analysis

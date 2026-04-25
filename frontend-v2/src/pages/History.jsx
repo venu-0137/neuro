@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Clock, MessageSquare, ChevronRight, Search, Filter, Sparkles, TrendingUp, Calendar, Zap } from 'lucide-react';
 import axios from 'axios';
 import GlassCard from '../components/GlassCard.jsx';
@@ -92,6 +92,7 @@ const TrendChart = ({ items }) => {
 
 const History = () => {
     const navigate = useNavigate();
+    const { patientId } = useParams();
     const [historyItems, setHistoryItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -106,7 +107,8 @@ const History = () => {
                     navigate('/');
                     return;
                 }
-                const response = await axios.get('/history', {
+                const url = patientId ? `/history?patient_id=${patientId}` : '/history';
+                const response = await axios.get(url, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setHistoryItems(response.data);

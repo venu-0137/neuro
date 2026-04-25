@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Brain, MessageSquare, X, Calendar, Sparkles, Clock, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import GlassCard from '../components/GlassCard.jsx';
@@ -8,6 +8,7 @@ import { getDominantEmotion, formatDate as safeFormatDate } from '../utils/safeD
 
 const Diary = () => {
     const navigate = useNavigate();
+    const { patientId } = useParams();
     const [text, setText] = useState('');
     const [mood, setMood] = useState('😊');
     const [loading, setLoading] = useState(false);
@@ -15,6 +16,7 @@ const Diary = () => {
     const [showPopup, setShowPopup] = useState(false);
     const [aiInsight, setAiInsight] = useState(null);
     const [editingId, setEditingId] = useState(null);
+    const isCounselorView = localStorage.getItem('role') === 'counselor' && localStorage.getItem('viewing_mode') === 'counselor';
 
     const moods = ['😊', '😔', '😤', '😨', '🤔', '😴', '🥳', '😭'];
 
@@ -25,7 +27,8 @@ const Diary = () => {
     const fetchHistory = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('/diary/history', {
+            const url = patientId ? `/diary/history?patient_id=${patientId}` : '/diary/history';
+            const response = await axios.get(url, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             // Ensure we always receive an array
@@ -37,7 +40,7 @@ const Diary = () => {
     };
 
     const handleSave = async () => {
-        if (!text.trim() || loading) return;
+        if (!text.trim() || loading || isCounselorView) return;
         setLoading(true);
 
         try {
@@ -90,6 +93,7 @@ const Diary = () => {
     };
 
     const handleEntryDoubleClick = (entry) => {
+        if (isCounselorView) return;
         setText(entry.text);
         setMood(entry.mood);
         setEditingId(entry.id);
@@ -116,10 +120,15 @@ const Diary = () => {
                             <Calendar size={14} />
                             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                         </div>
+                        {isCounselorView && (
+                            <div className="mt-2 inline-flex items-center px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-[10px] font-bold text-yellow-500 uppercase tracking-widest">
+                                Viewing Only (Read Mode)
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {editingId && (
+                    {editingId && !isCounselorView && (
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -133,19 +142,21 @@ const Diary = () => {
                             Cancel Edit
                         </motion.button>
                     )}
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleSave}
-                        disabled={!text.trim() || loading}
-                        className="flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white font-bold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
-                    >
-                        {loading ? (
-                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <><Save size={18} /> {editingId ? 'Update Entry' : 'Save Entry'}</>
-                        )}
-                    </motion.button>
+                    {!isCounselorView && (
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleSave}
+                            disabled={!text.trim() || loading}
+                            className="flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white font-bold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                        >
+                            {loading ? (
+                                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <><Save size={18} /> {editingId ? 'Update Entry' : 'Save Entry'}</>
+                            )}
+                        </motion.button>
+                    )}
                 </div>
             </div>
 
@@ -174,11 +185,14 @@ const Diary = () => {
 
                 <GlassCard className="p-0 border-white/10 overflow-hidden shadow-2xl bg-black/20">
                     <textarea
-                        autoFocus
+                        autoFocus={!isCounselorView}
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        placeholder="What's spinning in your mind?"
-                        className="w-full h-[40vh] bg-transparent text-white p-8 md:p-10 text-lg leading-relaxed focus:outline-none placeholder:text-slate-700 resize-none"
+                        onChange={(e) => {
+                            if (!isCounselorView) setText(e.target.value);
+                        }}
+                        readOnly={isCounselorView}
+                        placeholder={isCounselorView ? "Select an entry to view details..." : "What's spinning in your mind?"}
+                        className={`w-full h-[40vh] bg-transparent text-white p-8 md:p-10 text-lg leading-relaxed focus:outline-none resize-none ${isCounselorView ? 'cursor-not-allowed opacity-70' : 'placeholder:text-slate-700'}`}
                     />
                     <div className="bg-white/5 border-t border-white/5 px-8 py-3 flex justify-between items-center">
                         <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
@@ -211,8 +225,9 @@ const Diary = () => {
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     layout
                                     onDoubleClick={() => handleEntryDoubleClick(entry)}
-                                    className="cursor-pointer"
-                                    title="Double-click to edit this entry"
+                                    className={isCounselorView ? "cursor-pointer" : "cursor-pointer"}
+                                    onClick={() => isCounselorView && handleEntryDoubleClick(entry)}
+                                    title={isCounselorView ? "Click to view this entry" : "Double-click to edit this entry"}
                                 >
                                     <GlassCard className="p-0 border-white/5 bg-white/5 hover:bg-white/8 transition-colors group">
                                         <div className="flex min-h-[100px]">

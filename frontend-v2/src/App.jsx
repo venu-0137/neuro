@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import Login from './pages/Login.jsx';
+import StudentLogin from './pages/StudentLogin.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Analysis from './pages/Analysis.jsx';
 import Results from './pages/Results.jsx';
@@ -8,9 +9,12 @@ import History from './pages/History.jsx';
 import NeuralAssistant from './pages/NeuralAssistant.jsx';
 import MoodMachine from './pages/MoodMachine.jsx';
 import Diary from './pages/Diary.jsx';
+import CounselorDashboard from './pages/CounselorDashboard.jsx';
+import PatientView from './pages/PatientView.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import { Menu } from 'lucide-react';
 import PageBackground from './components/PageBackground.jsx';
+import axios from 'axios';
 import './styles/global.css';
 
 const backgroundMap = {
@@ -21,7 +25,8 @@ const backgroundMap = {
     '/history': '/backgrounds/forest-path.png',
     '/assistant': 'https://images.unsplash.com/photo-1614728263952-84ea256f9679?auto=format&fit=crop&q=80&w=2000',
     '/mood-machine': 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=2000',
-    '/diary': 'https://images.unsplash.com/photo-1516414447565-b14be0adf13e?auto=format&fit=crop&q=80&w=2000'
+    '/diary': 'https://images.unsplash.com/photo-1516414447565-b14be0adf13e?auto=format&fit=crop&q=80&w=2000',
+    '/counselor-dashboard': 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=2000'
 };
 
 const blurMap = {
@@ -42,14 +47,48 @@ function AppContent() {
     
     const bgImage = backgroundMap[location.pathname] || backgroundMap['/'];
     const bgBlur = blurMap[location.pathname] || '10px';
-    const isLoginPage = location.pathname === '/' || location.pathname === '/login';
+    const isLoginPage = location.pathname === '/' || location.pathname === '/login' || location.pathname === '/student-login';
 
-    // Global authentication check on page load/navigation
+    // Global authentication and role check
     React.useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token && !isLoginPage) {
-            navigate('/login');
-        }
+        const verifyAuth = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                if (!isLoginPage) navigate('/login');
+                return;
+            }
+
+            try {
+                // Fetch the source of truth for the role from the server
+                const response = await axios.get('/me', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const role = response.data.role;
+                localStorage.setItem('role', role); // Keep in sync
+                
+                // Safe guard to prevent bugs if a personal user accidentally gets a viewing_mode
+                if (role !== 'counselor') {
+                    localStorage.removeItem('viewing_mode');
+                    localStorage.removeItem('viewing_patient_id');
+                }
+
+                if (isLoginPage) {
+                    navigate(role === 'counselor' ? '/counselor-dashboard' : '/dashboard');
+                } else if (location.pathname === '/dashboard' && role === 'counselor') {
+                    navigate('/counselor-dashboard');
+                } else if (location.pathname === '/counselor-dashboard' && role !== 'counselor') {
+                    navigate('/dashboard');
+                }
+            } catch (err) {
+                console.error("Auth verification failed:", err);
+                if (err.response?.status === 401) {
+                    localStorage.clear();
+                    navigate('/login');
+                }
+            }
+        };
+
+        verifyAuth();
     }, [location.pathname, isLoginPage, navigate]);
 
     return (
@@ -72,6 +111,7 @@ function AppContent() {
                 <Routes>
                     <Route path="/" element={<Login />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/student-login" element={<StudentLogin />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/analysis" element={<Analysis />} />
                     <Route path="/results" element={<Results />} />
@@ -79,6 +119,19 @@ function AppContent() {
                     <Route path="/assistant" element={<NeuralAssistant />} />
                     <Route path="/mood-machine" element={<MoodMachine />} />
                     <Route path="/diary" element={<Diary />} />
+                    <Route path="/counselor-dashboard" element={<CounselorDashboard />} />
+                    
+                    {/* Patient View Routes (Counselor Only) */}
+                    <Route path="/patient/:patientId" element={<PatientView />}>
+                        <Route index element={<Dashboard />} />
+                        <Route path="dashboard" element={<Dashboard />} />
+                        <Route path="analysis" element={<Analysis />} />
+                        <Route path="results" element={<Results />} />
+                        <Route path="history" element={<History />} />
+                        <Route path="assistant" element={<NeuralAssistant />} />
+                        <Route path="diary" element={<Diary />} />
+                    </Route>
+
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </main>

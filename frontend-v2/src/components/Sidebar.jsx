@@ -3,22 +3,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
     User, HelpCircle, LogOut, Home, 
-    PlusCircle, History, MessageSquare, X, Brain 
+    PlusCircle, History, MessageSquare, X, Brain, Book
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const menuItems = [
-        { path: '/dashboard', label: 'Home', icon: <Home size={20} /> },
-        { path: '/analysis', label: 'New Analysis', icon: <PlusCircle size={20} /> },
-        { path: '/history', label: 'History', icon: <History size={20} /> },
-        { path: '/assistant', label: 'Neural Assistant', icon: <MessageSquare size={20} /> },
-    ];
+    const role = localStorage.getItem('role') || 'user';
+
+    const menuItems = role === 'counselor' 
+        ? [
+            { path: '/counselor-dashboard', label: 'Counselor Hub', icon: <Home size={20} /> },
+        ]
+        : [
+            { path: '/dashboard', label: 'Home', icon: <Home size={20} /> },
+            { path: '/analysis', label: 'New Analysis', icon: <PlusCircle size={20} /> },
+            { path: '/history', label: 'History', icon: <History size={20} /> },
+            { path: '/diary', label: 'My Diary', icon: <Book size={20} /> },
+            { path: '/assistant', label: 'Neural Assistant', icon: <MessageSquare size={20} /> },
+        ];
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
+        localStorage.clear();
         onClose();
         navigate('/');
     };
